@@ -1,6 +1,3 @@
-# Beginner Guide
+# 初学者指南（Beginner Guide）
 
-- Simple Greeter
-- Generic Context
-- Context Implementation
-- Greeter Component
+todo

@@ -1,4 +1,4 @@
-# Store Implementation
+# 存储实现（Store Implementation）
 
 ```rust
 struct FsKvStore { /* ... */ }
@@ -73,7 +73,7 @@ fn app_greeter() -> impl Greeter<AppContext> {
 }
 ```
 
-## Multiple Context Implementations
+## 多上下文实现 （Multiple Context Implementations）
 
 ```rust
 struct Foo;

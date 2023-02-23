@@ -1,4 +1,4 @@
-# Caching Querier
+# 缓存查询（Caching Querier）
 
 ```rust
 trait PersonQuerier<Context>
@@ -37,7 +37,7 @@ where
 }
 ```
 
-## Caching App Context
+## 缓存应用上下文 （Caching App Context）
 
 ```rust
 #[derive(Clone)]
