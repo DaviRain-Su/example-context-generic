@@ -5,33 +5,55 @@ on:
       - main
 
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write  # To push a branch 
-      pull-requests: write  # To create a PR from that branch
+  release:
+    name: Deploy Release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        target:
+          - aarch64-unknown-linux-musl
+          - x86_64-unknown-linux-gnu
+          - x86_64-unknown-linux-musl
+          - x86_64-apple-darwin
+          - x86_64-pc-windows-msvc
+        include:
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-20.04
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-20.04
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-20.04
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
     steps:
-    - uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
-    - name: Install mdbook
+    - uses: actions/checkout@master
+    - name: Install hub
+      run: ci/install-hub.sh ${{ matrix.os }}
+      shell: bash
+    - name: Install Rust
+      run: ci/install-rust.sh stable ${{ matrix.target }}
+      shell: bash
+    - name: Build and deploy artifacts
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: ci/make-release.sh ${{ matrix.os }} ${{ matrix.target }}
+      shell: bash
+  pages:
+    name: GitHub Pages
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    - name: Install Rust (rustup)
+      run: rustup update stable --no-self-update && rustup default stable
+    - name: Build book
+      run: cargo run -- build guide
+    - name: Deploy to GitHub
+      env:
+        GITHUB_DEPLOY_KEY: ${{ secrets.GITHUB_DEPLOY_KEY }}
       run: |
-        mkdir mdbook
-        curl -sSL https://github.com/rust-lang/mdBook/releases/download/v0.4.27/mdbook-v0.4.27-x86_64-unknown-linux-gnu.tar.gz | tar -xz --directory=./mdbook
-        echo `pwd`/mdbook >> $GITHUB_PATH
-    - name: Deploy GitHub Pages
-      run: |
-        # This assumes your book is in the root of your repository.
-        # Just add a `cd` here if you need to change to another directory.
-        mdbook build
-        git worktree add gh-pages
-        git config user.name "Deploy from CI"
-        git config user.email ""
-        cd gh-pages
-        # Delete the ref to avoid keeping history.
-        git update-ref -d refs/heads/gh-pages
-        rm -rf *
-        mv ../book/* .
-        git add .
-        git commit -m "Deploy $GITHUB_SHA to gh-pages"
-        git push --force --set-upstream origin gh-pages
+        touch guide/book/.nojekyll
+        curl -LsSf https://raw.githubusercontent.com/rust-lang/simpleinfra/master/setup-deploy-keys/src/deploy.rs | rustc - -o /tmp/deploy
+        cd guide/book
+        /tmp/deploy
