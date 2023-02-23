@@ -1,58 +1,26 @@
-name: Deploy
+name: CI
+
 on:
-  release:
-    types: [created]
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
-  release:
-    name: Deploy Release
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        target:
-          - aarch64-unknown-linux-musl
-          - x86_64-unknown-linux-gnu
-          - x86_64-unknown-linux-musl
-          - x86_64-apple-darwin
-          - x86_64-pc-windows-msvc
-        include:
-          - target: aarch64-unknown-linux-musl
-            os: ubuntu-20.04
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-20.04
-          - target: x86_64-unknown-linux-musl
-            os: ubuntu-20.04
-          - target: x86_64-apple-darwin
-            os: macos-latest
-          - target: x86_64-pc-windows-msvc
-            os: windows-latest
-    steps:
-    - uses: actions/checkout@master
-    - name: Install hub
-      run: ci/install-hub.sh ${{ matrix.os }}
-      shell: bash
-    - name: Install Rust
-      run: ci/install-rust.sh stable ${{ matrix.target }}
-      shell: bash
-    - name: Build and deploy artifacts
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: ci/make-release.sh ${{ matrix.os }} ${{ matrix.target }}
-      shell: bash
-  pages:
-    name: GitHub Pages
+  build:
+    name: Build, Test and Deploy
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # To push a branch 
+      pull-requests: write  # To create a PR from that branch
     steps:
-    - uses: actions/checkout@master
-    - name: Install Rust (rustup)
-      run: rustup update stable --no-self-update && rustup default stable
-    - name: Build book
-      run: cargo run -- build guide
-    - name: Deploy to GitHub
-      env:
-        GITHUB_DEPLOY_KEY: ${{ secrets.GITHUB_DEPLOY_KEY }}
-      run: |
-        touch guide/book/.nojekyll
-        curl -LsSf https://raw.githubusercontent.com/rust-lang/simpleinfra/master/setup-deploy-keys/src/deploy.rs | rustc - -o /tmp/deploy
-        cd guide/book
-        /tmp/deploy
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - run: (test -x $HOME/.cargo/bin/mdbook || cargo install --vers "^0.4" mdbook)
+      - run: mdbook build && mdbook test # In case of custom book path: mdbook build path/to/mybook && mdbook test path/to/mybook
+      - uses: JamesIves/github-pages-deploy-action@4.1.7
+        with:
+          branch: gh-pages # The branch the action should deploy to.
+          folder: book # The folder the action should deploy.
